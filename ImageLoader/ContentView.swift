@@ -10,48 +10,38 @@ import SwiftData
 
 struct ContentView: View {
     @Environment(\.modelContext) private var modelContext
-    @Query private var items: [Item]
+    @ObservedObject var imageViewModel = HomeViewModel()
 
     var body: some View {
-        NavigationSplitView {
-            List {
-                ForEach(items) { item in
-                    NavigationLink {
-                        Text("Item at \(item.timestamp, format: Date.FormatStyle(date: .numeric, time: .standard))")
-                    } label: {
-                        Text(item.timestamp, format: Date.FormatStyle(date: .numeric, time: .standard))
+        NavigationView {
+            if imageViewModel.articles.isEmpty {
+                ProgressView("Loading...")
+                    .padding()
+            } else {
+                ScrollView {
+                    LazyVGrid(columns: Array(repeating: GridItem(), count: 3), spacing: 10) {
+                        ForEach(imageViewModel.articles, id: \.id) { article in
+                            AsyncImageView(article: article)
+                                .frame(width: 100, height: 100)
+                                .aspectRatio(contentMode: .fill)
+                                .clipped()
+                        }
                     }
+                    .padding()
                 }
-                .onDelete(perform: deleteItems)
+                .navigationBarTitle("Media Coverages", displayMode: .inline)
+                .navigationBarHidden(false)
             }
-            .toolbar {
-                ToolbarItem(placement: .navigationBarTrailing) {
-                    EditButton()
-                }
-                ToolbarItem {
-                    Button(action: addItem) {
-                        Label("Add Item", systemImage: "plus")
-                    }
-                }
-            }
-        } detail: {
-            Text("Select an item")
-        }
-    }
 
-    private func addItem() {
-        withAnimation {
-            let newItem = Item(timestamp: Date())
-            modelContext.insert(newItem)
         }
-    }
+        .onAppear {
+            imageViewModel.fetchData()
+        }
+        .alert(isPresented: $imageViewModel.showAlert) {
+            Alert(title: Text("Error"), message: Text(imageViewModel.alertMessage), dismissButton: .default(Text("OK")))   
+        }
 
-    private func deleteItems(offsets: IndexSet) {
-        withAnimation {
-            for index in offsets {
-                modelContext.delete(items[index])
-            }
-        }
+
     }
 }
 
